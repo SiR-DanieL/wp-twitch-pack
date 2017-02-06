@@ -95,7 +95,7 @@ class WP_Twitch_Pack_Admin {
 					<dd><a href="<?php echo esc_url( $this->_settings['channel']->url ); ?>" target="_blank"><?php echo esc_url( $this->_settings['channel']->url ); ?></a></dd>
 
 					<dt><strong><?php esc_html_e( 'ID', 'wp-twitch-pack' ); ?></strong></dt>
-					<dd><?php echo (int) $this->_settings['channel']->_id; ?></dd>
+					<dd><?php echo absint( $this->_settings['channel']->_id ); ?></dd>
 
 					<dt><strong><?php esc_html_e( 'Twitch Partner', 'wp-twitch-pack' ); ?></strong></dt>
 					<dd><?php echo ( true === (bool) $this->_settings['channel']->partner ? esc_html__( 'Yes', 'wp-twitch-pack' ) : esc_html__( 'No', 'wp-twitch-pack' ) ); ?></dd>
@@ -129,8 +129,15 @@ class WP_Twitch_Pack_Admin {
 	 */
 	public function admin_init() {
 		// Delete options if disconnecting.
-		if ( isset( $_GET['action'] ) && sanitize_key( $_GET['action'] ) === 'disconnect_client' ) {
-			$this->_http_client->disconnect_twitch();
+		if ( isset( $_GET['action'] ) ) {
+			switch ( sanitize_key( $_GET['action'] ) ) {
+				case 'disconnect_client':
+					$this->_disconnect_twitch();
+					break;
+				case 'delete_cache':
+					$this->delete_cache();
+					break;
+			}
 		}
 
 		// Update auth code before to request the token.
@@ -184,6 +191,14 @@ class WP_Twitch_Pack_Admin {
 		if ( ! empty( $this->_settings['client_id'] ) && ! empty( $this->_settings['client_secret'] ) && empty( $this->_settings['code'] ) ) {
 			add_settings_field( 'authorize_app', __( 'Authorize', 'wp-twitch-pack' ), array( $this, 'settings_field_authorize_app' ), 'wp-twitch-pack-settings', 'auth' );
 		}
+
+		add_settings_field(
+			'delete_cache',
+			__( 'Delete Cache', 'wp-twitch-pack' ),
+			array( $this, 'settings_field_delete_cache' ),
+			'wp-twitch-pack-settings',
+			'auth'
+		);
 	}
 
 	/**
@@ -235,6 +250,16 @@ class WP_Twitch_Pack_Admin {
 	}
 
 	/**
+	 * Prints the Delete Cache button in the settings.
+	 */
+	public function settings_field_delete_cache() {
+		?>
+		<a href="<?php echo esc_url( admin_url( 'options-general.php?page=wp-twitch-pack&action=delete_cache' ) ) ?>" class="button"><?php esc_html_e( 'Delete Cached Contents', 'wp-twitch-pack' ); ?></a>
+		<p class="description"><?php esc_html_e( 'WP Twitch Pack saves some content in the cache to save resources. Delete the cache by clicking on this button.', 'wpcom-crosspost' ); ?></p>
+		<?php
+	}
+
+	/**
 	 * Validates and escapes the settings
 	 *
 	 * @param  array $settings The settings array before to save them.
@@ -250,6 +275,30 @@ class WP_Twitch_Pack_Admin {
 		}
 
 		return $settings;
+	}
+
+	/**
+	 * Deletes the cached content.
+	 */
+	public function delete_cache() {
+		wp_cache_delete( 'wp-twitch-pack-stream' );
+		wp_cache_delete( 'wp-twitch-pack-videos-archive' );
+		wp_cache_delete( 'wp-twitch-pack-videos-highlight' );
+	}
+
+	/**
+	 * Deletes connection options when disconnecting Twitch.tv.
+	 *
+	 * @access private
+	 */
+	private function _disconnect_twitch() {
+		$this->_settings['code']    = '';
+		$this->_settings['token']   = '';
+		$this->_settings['channel'] = null;
+
+		$this->_log->info( esc_html__( 'Removed authorization for Twitch.', 'wp-twitch-pack' ) );
+
+		update_option( 'wp-twitch-pack-settings', $this->_settings );
 	}
 
 	/**

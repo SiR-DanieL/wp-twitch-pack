@@ -390,19 +390,6 @@ class WP_Twitch_Pack_HTTP {
 	}
 
 	/**
-	 * Deletes connection options when disconnecting Twitch.tv.
-	 */
-	public function disconnect_twitch() {
-		$this->_settings['code']    = '';
-		$this->_settings['token']   = '';
-		$this->_settings['channel'] = null;
-
-		$this->_log->info( esc_html__( 'Removed authorization for Twitch.', 'wp-twitch-pack' ) );
-
-		update_option( 'wp-twitch-pack-settings', $this->_settings );
-	}
-
-	/**
 	 * Makes an API call to Twitch.
 	 *
 	 * @param  string $method        The method of the request.
