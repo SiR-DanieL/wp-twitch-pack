@@ -106,11 +106,14 @@ class WP_Twitch_Pack_Admin {
 				<p><?php esc_html_e( 'Here are the stats of the Twitch channel connected to this site.', 'wp-twitch-pack' ); ?></p>
 
 				<dl>
-					<dt><strong><?php esc_html_e( 'Followers', 'wp-twitch-pack' ); ?></strong></dt>
-					<dd><?php echo number_format( (int) $this->_settings['channel']->followers ); ?> (<?php printf( esc_html__( '%s from this site', 'wp-twitch-pack' ), number_format( absint( get_option( 'wp-twitch-pack-followers-from-site' ) ) ) ); ?>)</dd>
+					<dt><strong><?php esc_html_e( 'Total Followers', 'wp-twitch-pack' ); ?></strong></dt>
+					<dd><?php echo number_format( absint( $this->_settings['channel']->followers ) ); ?></dd>
+
+					<dt><strong><?php esc_html_e( 'Followers From Site', 'wp-twitch-pack' ); ?></strong></dt>
+					<dd><?php echo number_format( absint( get_option( 'wp-twitch-pack-followers-from-site' ) ) ); ?></dd>
 
 					<dt><strong><?php esc_html_e( 'Views', 'wp-twitch-pack' ); ?></strong></dt>
-					<dd><?php echo number_format( (int) $this->_settings['channel']->views ); ?></dd>
+					<dd><?php echo number_format( absint( $this->_settings['channel']->views ) ); ?></dd>
 				</dl>
 				<?php
 				endif;
@@ -136,6 +139,9 @@ class WP_Twitch_Pack_Admin {
 					break;
 				case 'delete_cache':
 					$this->delete_cache();
+					break;
+				case 'update_channel_stats':
+					$this->_update_twitch_channel_data( true );
 					break;
 			}
 		}
@@ -185,20 +191,14 @@ class WP_Twitch_Pack_Admin {
 		if ( ! empty( $this->_settings['code'] ) || ! empty( $this->_settings['token'] ) ) {
 			$this->_update_twitch_channel_data();
 
+			add_settings_field( 'update_channel_stats', __( 'Update Channel Stats', 'wp-twitch-pack' ), array( $this, 'settings_field_update_channel_stats' ), 'wp-twitch-pack-settings', 'auth' );
+			add_settings_field( 'delete_cache', __( 'Delete Cache', 'wp-twitch-pack' ), array( $this, 'settings_field_delete_cache' ), 'wp-twitch-pack-settings', 'auth' );
 			add_settings_field( 'disconnect_client', __( 'Disconnect', 'wp-twitch-pack' ), array( $this, 'settings_field_disconnect_client' ), 'wp-twitch-pack-settings', 'auth' );
 		}
 
 		if ( ! empty( $this->_settings['client_id'] ) && ! empty( $this->_settings['client_secret'] ) && empty( $this->_settings['code'] ) ) {
 			add_settings_field( 'authorize_app', __( 'Authorize', 'wp-twitch-pack' ), array( $this, 'settings_field_authorize_app' ), 'wp-twitch-pack-settings', 'auth' );
 		}
-
-		add_settings_field(
-			'delete_cache',
-			__( 'Delete Cache', 'wp-twitch-pack' ),
-			array( $this, 'settings_field_delete_cache' ),
-			'wp-twitch-pack-settings',
-			'auth'
-		);
 	}
 
 	/**
@@ -240,12 +240,12 @@ class WP_Twitch_Pack_Admin {
 	}
 
 	/**
-	 * Prints the Disconnect button in the settings.
+	 * Prints the Update Channel Stats button in the settings.
 	 */
-	public function settings_field_disconnect_client() {
+	public function settings_field_update_channel_stats() {
 		?>
-		<a href="<?php echo esc_url( admin_url( 'options-general.php?page=wp-twitch-pack&action=disconnect_client' ) ) ?>" class="button primary"><?php esc_html_e( 'Disconnect & Remove Authorization for Twitch.tv', 'wp-twitch-pack' ); ?></a>
-		<p class="description"><?php esc_html_e( 'Disconnect this site from Twitch.tv.', 'wpcom-crosspost' ); ?></p>
+		<a href="<?php echo esc_url( admin_url( 'options-general.php?page=wp-twitch-pack&action=update_channel_stats' ) ) ?>" class="button"><?php esc_html_e( 'Update Channel Stats', 'wp-twitch-pack' ); ?></a>
+		<p class="description"><?php esc_html_e( 'Update the channel stats below by clicking on this button.', 'wpcom-crosspost' ); ?></p>
 		<?php
 	}
 
@@ -256,6 +256,16 @@ class WP_Twitch_Pack_Admin {
 		?>
 		<a href="<?php echo esc_url( admin_url( 'options-general.php?page=wp-twitch-pack&action=delete_cache' ) ) ?>" class="button"><?php esc_html_e( 'Delete Cached Contents', 'wp-twitch-pack' ); ?></a>
 		<p class="description"><?php esc_html_e( 'WP Twitch Pack saves some content in the cache to save resources. Delete the cache by clicking on this button.', 'wpcom-crosspost' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Prints the Disconnect button in the settings.
+	 */
+	public function settings_field_disconnect_client() {
+		?>
+		<a href="<?php echo esc_url( admin_url( 'options-general.php?page=wp-twitch-pack&action=disconnect_client' ) ) ?>" class="button primary"><?php esc_html_e( 'Disconnect & Remove Authorization for Twitch.tv', 'wp-twitch-pack' ); ?></a>
+		<p class="description"><?php esc_html_e( 'Disconnect this site from Twitch.tv.', 'wpcom-crosspost' ); ?></p>
 		<?php
 	}
 
@@ -308,8 +318,8 @@ class WP_Twitch_Pack_Admin {
 	 *
 	 * @access private
 	 */
-	private function _update_twitch_channel_data() {
-		if ( empty( $this->_settings['channel'] ) || ! isset( $this->_settings['channel_last_update'] ) || ( time() > $this->_settings['channel_last_update'] + ( HOUR_IN_SECONDS * 6 ) ) ) {
+	private function _update_twitch_channel_data( $force = false ) {
+		if ( true === $force || ( empty( $this->_settings['channel'] ) || ! isset( $this->_settings['channel_last_update'] ) || ( time() > $this->_settings['channel_last_update'] + ( HOUR_IN_SECONDS * 6 ) ) ) ) {
 			$this->_settings['channel']             = $this->_http_client->get_channel();
 			$this->_settings['channel_last_update'] = time();
 			update_option( 'wp-twitch-pack-settings', $this->_settings );
