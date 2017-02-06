@@ -86,14 +86,16 @@ class WP_Twitch_Pack_Admin {
 			array( $this, 'settings_page_content' )
 		);
 
-		add_submenu_page(
-			'wp-twitch-pack',
-			__( 'Twitch Channel Stats', 'wp-twitch-pack' ),
-			__( 'Stats', 'wp-twitch-pack' ),
-			'manage_options',
-			'wp-twitch-pack-stats',
-			array( $this, 'stats_page_content' )
-		);
+		if ( ! empty( $this->_settings['code'] ) || ! empty( $this->_settings['token'] ) ) {
+			add_submenu_page(
+				'wp-twitch-pack',
+				__( 'Twitch Channel Stats', 'wp-twitch-pack' ),
+				__( 'Stats', 'wp-twitch-pack' ),
+				'manage_options',
+				'wp-twitch-pack-stats',
+				array( $this, 'stats_page_content' )
+			);
+		}
 
 		remove_submenu_page( 'wp-twitch-pack','wp-twitch-pack' );
 	}
@@ -200,36 +202,11 @@ class WP_Twitch_Pack_Admin {
 	 * Registers all the settigns
 	 */
 	public function admin_init() {
-		// Delete options if disconnecting.
-		if ( isset( $_GET['action'] ) ) {
-			switch ( sanitize_key( $_GET['action'] ) ) {
-				case 'disconnect_client':
-					$this->_disconnect_twitch();
-					break;
-				case 'delete_cache':
-					$this->delete_cache();
-					break;
-				case 'update_channel_stats':
-					$this->_update_twitch_channel_data( true );
-					break;
-			}
-		}
+		// Handle GET actions when necessary.
+		$this->_handle_get_actions();
 
-		// Update auth code before to request the token.
-		if ( isset( $_GET['code'] ) && empty( $this->_settings['code'] ) ) {
-			$this->_settings['code'] = sanitize_key( $_GET['code'] );
-			update_option( 'wp-twitch-pack-settings', $this->_settings );
-		}
-
-		// If we have the code but not the token, get it.
-		if ( ! empty( $this->_settings['code'] ) && empty( $this->_settings['token'] ) ) {
-			$access_token = $this->_http_client->get_oauth_token( $this->_settings['code'] );
-
-			if ( false !== $access_token ) {
-				$this->_settings['token'] = sanitize_key( $access_token );
-				update_option( 'wp-twitch-pack-settings', $this->_settings );
-			}
-		}
+		// Generate token if necessary.
+		$this->_handle_token_generation();
 
 		// General Settings.
 		register_setting(
@@ -365,6 +342,54 @@ class WP_Twitch_Pack_Admin {
 		wp_cache_delete( 'wp-twitch-pack-videos-highlight' );
 
 		$this->_log->info( esc_html__( 'Cache deleted.', 'wp-twitch-pack' ) );
+	}
+
+	/**
+	 * Handles the plugin actions from GET variables.
+	 *
+	 * @access private
+	 */
+	private function _handle_get_actions() {
+		if ( isset( $_GET['action'] ) ) {
+			switch ( sanitize_key( $_GET['action'] ) ) {
+				case 'disconnect_client':
+					$this->_disconnect_twitch();
+					break;
+				case 'delete_cache':
+					$this->delete_cache();
+					break;
+				case 'update_channel_stats':
+					$this->_update_twitch_channel_data( true );
+					wp_safe_redirect( admin_url( 'admin.php?page=wp-twitch-pack-stats' ) );
+					exit;
+			}
+		}
+	}
+
+	/**
+	 * If there's an Authorization code in the admin URL then generate a token and redirect.
+	 *
+	 * @access private
+	 */
+	private function _handle_token_generation() {
+		// Update auth code before to request the token.
+		if ( isset( $_GET['code'] ) && empty( $this->_settings['code'] ) ) {
+			$this->_settings['code'] = sanitize_key( $_GET['code'] );
+			update_option( 'wp-twitch-pack-settings', $this->_settings );
+		}
+
+		// If we have the code but not the token, get it.
+		if ( ! empty( $this->_settings['code'] ) && empty( $this->_settings['token'] ) ) {
+			$access_token = $this->_http_client->get_oauth_token( $this->_settings['code'] );
+
+			if ( false !== $access_token ) {
+				$this->_settings['token'] = sanitize_key( $access_token );
+				update_option( 'wp-twitch-pack-settings', $this->_settings );
+
+				wp_safe_redirect( admin_url( 'admin.php?page=wp-twitch-pack-settings' ) );
+				exit;
+			}
+		}
 	}
 
 	/**
