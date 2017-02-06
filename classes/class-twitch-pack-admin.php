@@ -234,7 +234,7 @@ class WP_Twitch_Pack_Admin {
 	 */
 	public function settings_field_client_secret() {
 		?>
-		<input type="text" class="regular-text" id="website" name="wp-twitch-pack-settings[client_secret]" value="<?php echo esc_attr( $this->_settings['client_secret'] ); ?>" />
+		<input type="password" class="regular-text" id="website" name="wp-twitch-pack-settings[client_secret]" value="<?php echo esc_attr( $this->_settings['client_secret'] ); ?>" />
 		<p class="description"><?php esc_html_e( 'Write your WordPress.com App client secret here.', 'wp-twitch-pack' ); ?></p>
 		<?php
 	}
