@@ -200,6 +200,24 @@ class WP_Twitch_Pack {
 	}
 
 	/**
+	 * Get the plugin url.
+	 *
+	 * @return string
+	 */
+	public static function plugin_url() {
+		return untrailingslashit( plugins_url( '/', __FILE__ ) );
+	}
+	/**
+	 * Get the plugin path.
+	 *
+	 * @return string
+	 */
+	public static function plugin_path() {
+		return untrailingslashit( plugin_dir_path( __FILE__ ) );
+	}
+
+
+	/**
 	 * Loads the plugin localization files.
 	 */
 	public function load_textdomain() {

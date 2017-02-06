@@ -98,18 +98,18 @@ class WP_Twitch_Pack_HTTP {
 	 */
 	public function redirect_oauth() {
 		if ( isset( $_GET['code'] ) && current_user_can( 'manage_options' ) ) {
-			wp_safe_redirect( admin_url( 'options-general.php?page=wp-twitch-pack&code=' . sanitize_key( $_GET['code'] ) ) );
+			wp_safe_redirect( admin_url( 'admin.php?page=wp-twitch-pack-settings&code=' . sanitize_key( $_GET['code'] ) ) );
 			exit;
 		} elseif ( isset( $_GET['code'] ) ) {
-			$followed     = 'no';
+			$followed                 = 'no';
 			$this->_user_access_token = $this->get_oauth_token( sanitize_key( $_GET['code'] ) );
 
 			if ( false !== $this->_user_access_token ) {
-				$channel_id = $this->_settings['channel']->_id;
-				$user_id    = (int) $this->get_user( '_id' );
+				$channel_id = absint( $this->_settings['channel']->_id );
+				$user_id    = absint( $this->get_user( '_id' ) );
 
 				if ( ! $this->is_following_channel( $user_id, $channel_id ) ) {
-					// Follows the admin's channel for the user.
+					// Follows the connected Twitch channel for the user.
 					$result = $this->follow_channel( $user_id, $channel_id );
 
 					$followed = ( true === $result ? 'yes' : 'no' );

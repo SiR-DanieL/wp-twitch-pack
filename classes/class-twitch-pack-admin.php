@@ -45,7 +45,8 @@ class WP_Twitch_Pack_Admin {
 		$this->_http_client = WP_Twitch_Pack_HTTP::instance();
 		$this->_log         = new WP_Twitch_Pack_Logger();
 
-		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
+		add_action( 'admin_menu', array( $this, 'admin_menu' ), 9 );
+		add_filter( 'menu_order', array( $this, 'menu_order' ) );
 		add_action( 'admin_init', array( $this, 'admin_init' ) );
 
 		$this->_settings = wp_parse_args( get_option( 'wp-twitch-pack-settings' ), array(
@@ -60,18 +61,76 @@ class WP_Twitch_Pack_Admin {
 	 * Adds the Settings menu item
 	 */
 	public function admin_menu() {
-		add_options_page(
+		global $menu;
+
+		if ( current_user_can( 'manage_options' ) ) {
+			$menu[] = array( '', 'read', 'separator-wp-twitch-pack', '', 'wp-menu-separator wp-twitch-pack' );
+		}
+
+		add_menu_page(
 			__( 'Twitch Pack', 'wp-twitch-pack' ),
 			__( 'Twitch Pack', 'wp-twitch-pack' ),
 			'manage_options',
 			'wp-twitch-pack',
-			array( $this, 'settings_page_contents' )
+			null,
+			WP_Twitch_Pack::plugin_url() . '/assets/images/glitch-20x20.svg',
+			'35.5'
 		);
+
+		add_submenu_page(
+			'wp-twitch-pack',
+			__( 'General Settings', 'wp-twitch-pack' ),
+			__( 'Settings', 'wp-twitch-pack' ),
+			'manage_options',
+			'wp-twitch-pack-settings',
+			array( $this, 'settings_page_content' )
+		);
+
+		add_submenu_page(
+			'wp-twitch-pack',
+			__( 'Twitch Channel Stats', 'wp-twitch-pack' ),
+			__( 'Stats', 'wp-twitch-pack' ),
+			'manage_options',
+			'wp-twitch-pack-stats',
+			array( $this, 'stats_page_content' )
+		);
+
+		remove_submenu_page( 'wp-twitch-pack','wp-twitch-pack' );
 	}
+
+	/**
+	 * Reorder the WP Twitch Pack menu items in admin.
+	 *
+	 * @param  mixed $menu_order The menu order array.
+	 * @return array
+	 */
+	public function menu_order( $menu_order ) {
+		// Initialize our custom order array.
+		$twitch_menu_order = array();
+
+		// Get the index of our custom separator.
+		$twitch_separator = array_search( 'separator-wp-twitch-pack', $menu_order );
+
+		// Loop through menu order and do some rearranging.
+		foreach ( $menu_order as $index => $item ) {
+			if ( ( ( 'wp-twitch-pack' ) === $item ) ) {
+				$twitch_menu_order[] = 'separator-wp-twitch-pack';
+				$twitch_menu_order[] = $item;
+				$twitch_menu_order[] = 'wp-twitch-pack';
+				unset( $menu_order[ $twitch_separator ] );
+			} elseif ( ! in_array( $item, array( 'separator-wp-twitch-pack' ) ) ) {
+				$twitch_menu_order[] = $item;
+			}
+		}
+
+		// Return order.
+		return $twitch_menu_order;
+	}
+
 	/**
 	 * Prints the Settings page
 	 */
-	public function settings_page_contents() {
+	public function settings_page_content() {
 		?>
 		<div class="wrap">
 			<h2><?php esc_html_e( 'WP Twitch Pack Settings', 'wp-twitch-pack' ); ?></h2>
@@ -81,48 +140,58 @@ class WP_Twitch_Pack_Admin {
 				<?php settings_fields( 'wp-twitch-pack-settings' ); ?>
 				<?php do_settings_sections( 'wp-twitch-pack-settings' ); ?>
 
-				<?php
-				if ( isset( $this->_settings['channel'] ) ) :
-				?>
-				<h3><?php esc_html_e( 'Channel Info', 'wp-twitch-pack' ); ?></h3>
-
-				<p><?php esc_html_e( 'Here are the info of the Twitch channel connected to this site.', 'wp-twitch-pack' ); ?></p>
-				<dl>
-					<dt><strong><?php esc_html_e( 'Name', 'wp-twitch-pack' ); ?></strong></dt>
-					<dd><?php echo esc_html( $this->_settings['channel']->display_name ); ?> &lt;<?php echo esc_html( $this->_settings['channel']->email ); ?>&gt;</dd>
-
-					<dt><strong><?php esc_html_e( 'URL', 'wp-twitch-pack' ); ?></strong></dt>
-					<dd><a href="<?php echo esc_url( $this->_settings['channel']->url ); ?>" target="_blank"><?php echo esc_url( $this->_settings['channel']->url ); ?></a></dd>
-
-					<dt><strong><?php esc_html_e( 'ID', 'wp-twitch-pack' ); ?></strong></dt>
-					<dd><?php echo absint( $this->_settings['channel']->_id ); ?></dd>
-
-					<dt><strong><?php esc_html_e( 'Twitch Partner', 'wp-twitch-pack' ); ?></strong></dt>
-					<dd><?php echo ( true === (bool) $this->_settings['channel']->partner ? esc_html__( 'Yes', 'wp-twitch-pack' ) : esc_html__( 'No', 'wp-twitch-pack' ) ); ?></dd>
-				</dl>
-
-				<h3><?php esc_html_e( 'Channel Stats', 'wp-twitch-pack' ); ?></h3>
-
-				<p><?php esc_html_e( 'Here are the stats of the Twitch channel connected to this site.', 'wp-twitch-pack' ); ?></p>
-
-				<dl>
-					<dt><strong><?php esc_html_e( 'Total Followers', 'wp-twitch-pack' ); ?></strong></dt>
-					<dd><?php echo number_format( absint( $this->_settings['channel']->followers ) ); ?></dd>
-
-					<dt><strong><?php esc_html_e( 'Followers From Site', 'wp-twitch-pack' ); ?></strong></dt>
-					<dd><?php echo number_format( absint( get_option( 'wp-twitch-pack-followers-from-site' ) ) ); ?></dd>
-
-					<dt><strong><?php esc_html_e( 'Views', 'wp-twitch-pack' ); ?></strong></dt>
-					<dd><?php echo number_format( absint( $this->_settings['channel']->views ) ); ?></dd>
-				</dl>
-				<?php
-				endif;
-				?>
-
 				<p class="submit">
 					<input name="submit" type="submit" class="button-primary" value="<?php esc_attr_e( 'Save Changes', 'wp-twitch-pack' ); ?>" />
 				</p>
 			</form>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Prints the Channel Stats page
+	 */
+	public function stats_page_content() {
+		?>
+		<div class="wrap">
+			<h2><?php esc_html_e( 'Twitch Channel Stats', 'wp-twitch-pack' ); ?></h2>
+			<?php
+			if ( isset( $this->_settings['channel'] ) ) :
+			?>
+			<h3><?php esc_html_e( 'Info', 'wp-twitch-pack' ); ?></h3>
+
+			<p><?php esc_html_e( 'Here are the info of the Twitch channel connected to this site.', 'wp-twitch-pack' ); ?></p>
+			<dl>
+				<dt><strong><?php esc_html_e( 'Name', 'wp-twitch-pack' ); ?></strong></dt>
+				<dd><?php echo esc_html( $this->_settings['channel']->display_name ); ?> &lt;<?php echo esc_html( $this->_settings['channel']->email ); ?>&gt;</dd>
+
+				<dt><strong><?php esc_html_e( 'URL', 'wp-twitch-pack' ); ?></strong></dt>
+				<dd><a href="<?php echo esc_url( $this->_settings['channel']->url ); ?>" target="_blank"><?php echo esc_url( $this->_settings['channel']->url ); ?></a></dd>
+
+				<dt><strong><?php esc_html_e( 'ID', 'wp-twitch-pack' ); ?></strong></dt>
+				<dd><?php echo absint( $this->_settings['channel']->_id ); ?></dd>
+
+				<dt><strong><?php esc_html_e( 'Twitch Partner', 'wp-twitch-pack' ); ?></strong></dt>
+				<dd><?php echo ( true === (bool) $this->_settings['channel']->partner ? esc_html__( 'Yes', 'wp-twitch-pack' ) : esc_html__( 'No', 'wp-twitch-pack' ) ); ?></dd>
+			</dl>
+
+			<h3><?php esc_html_e( 'Stats', 'wp-twitch-pack' ); ?></h3>
+
+			<p><?php esc_html_e( 'Here are the stats of the Twitch channel connected to this site.', 'wp-twitch-pack' ); ?></p>
+
+			<dl>
+				<dt><strong><?php esc_html_e( 'Total Followers', 'wp-twitch-pack' ); ?></strong></dt>
+				<dd><?php echo number_format( absint( $this->_settings['channel']->followers ) ); ?></dd>
+
+				<dt><strong><?php esc_html_e( 'Followers From Site', 'wp-twitch-pack' ); ?></strong></dt>
+				<dd><?php echo number_format( absint( get_option( 'wp-twitch-pack-followers-from-site' ) ) ); ?></dd>
+
+				<dt><strong><?php esc_html_e( 'Views', 'wp-twitch-pack' ); ?></strong></dt>
+				<dd><?php echo number_format( absint( $this->_settings['channel']->views ) ); ?></dd>
+			</dl>
+			<?php
+			endif;
+			?>
 		</div>
 		<?php
 	}
@@ -244,7 +313,7 @@ class WP_Twitch_Pack_Admin {
 	 */
 	public function settings_field_update_channel_stats() {
 		?>
-		<a href="<?php echo esc_url( admin_url( 'options-general.php?page=wp-twitch-pack&action=update_channel_stats' ) ) ?>" class="button"><?php esc_html_e( 'Update Channel Stats', 'wp-twitch-pack' ); ?></a>
+		<a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-twitch-pack-settings&action=update_channel_stats' ) ) ?>" class="button"><?php esc_html_e( 'Update Channel Stats', 'wp-twitch-pack' ); ?></a>
 		<p class="description"><?php esc_html_e( 'Update the channel stats below by clicking on this button.', 'wpcom-crosspost' ); ?></p>
 		<?php
 	}
@@ -254,7 +323,7 @@ class WP_Twitch_Pack_Admin {
 	 */
 	public function settings_field_delete_cache() {
 		?>
-		<a href="<?php echo esc_url( admin_url( 'options-general.php?page=wp-twitch-pack&action=delete_cache' ) ) ?>" class="button"><?php esc_html_e( 'Delete Cached Contents', 'wp-twitch-pack' ); ?></a>
+		<a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-twitch-pack-settings&action=delete_cache' ) ) ?>" class="button"><?php esc_html_e( 'Delete Cached Contents', 'wp-twitch-pack' ); ?></a>
 		<p class="description"><?php esc_html_e( 'WP Twitch Pack saves some content in the cache to save resources. Delete the cache by clicking on this button.', 'wpcom-crosspost' ); ?></p>
 		<?php
 	}
@@ -264,7 +333,7 @@ class WP_Twitch_Pack_Admin {
 	 */
 	public function settings_field_disconnect_client() {
 		?>
-		<a href="<?php echo esc_url( admin_url( 'options-general.php?page=wp-twitch-pack&action=disconnect_client' ) ) ?>" class="button primary"><?php esc_html_e( 'Disconnect & Remove Authorization for Twitch.tv', 'wp-twitch-pack' ); ?></a>
+		<a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-twitch-pack-settings&action=disconnect_client' ) ) ?>" class="button primary"><?php esc_html_e( 'Disconnect & Remove Authorization for Twitch.tv', 'wp-twitch-pack' ); ?></a>
 		<p class="description"><?php esc_html_e( 'Disconnect this site from Twitch.tv.', 'wpcom-crosspost' ); ?></p>
 		<?php
 	}
