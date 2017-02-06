@@ -284,6 +284,8 @@ class WP_Twitch_Pack_Admin {
 		wp_cache_delete( 'wp-twitch-pack-stream' );
 		wp_cache_delete( 'wp-twitch-pack-videos-archive' );
 		wp_cache_delete( 'wp-twitch-pack-videos-highlight' );
+
+		$this->_log->info( esc_html__( 'Cache deleted.', 'wp-twitch-pack' ) );
 	}
 
 	/**
@@ -296,9 +298,9 @@ class WP_Twitch_Pack_Admin {
 		$this->_settings['token']   = '';
 		$this->_settings['channel'] = null;
 
-		$this->_log->info( esc_html__( 'Removed authorization for Twitch.', 'wp-twitch-pack' ) );
-
 		update_option( 'wp-twitch-pack-settings', $this->_settings );
+
+		$this->_log->info( esc_html__( 'Removed authorization for Twitch.', 'wp-twitch-pack' ) );
 	}
 
 	/**
