@@ -1,0 +1,14 @@
+.wp-twitch-pack.follow-button, .widget-area .widget a.wp-twitch-pack.follow-button {
+	background: #6441a4;
+	color: #ffffff;
+	display: inline-block;
+	font-weight: 400;
+	padding: 10px 15px;
+	text-decoration: none;
+}
+
+.wp-twitch-pack.follow-button svg {
+	height: 20px;
+	margin-right: 10px;
+	vertical-align: middle;
+}
