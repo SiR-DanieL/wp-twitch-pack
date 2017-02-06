@@ -211,6 +211,57 @@ class WP_Twitch_Pack_HTTP {
 	}
 
 	/**
+	 * Returns the status of the admin stream.
+	 *
+	 * @param  array $params Additional request parameters.
+	 * @return mixed
+	 */
+	public function get_stream( $params = array() ) {
+		$channel_id = $this->_settings['channel']->_id;
+		$stream     = wp_cache_get( 'wp-twitch-pack-stream-' . $channel_id );
+
+		if ( false !== $stream ) {
+			return $stream;
+		}
+
+		$stream = $this->_make_api_call( 'GET', 'streams/' . $channel_id, $params );
+
+		if ( false !== $stream ) {
+			wp_cache_set( 'wp-twitch-pack-stream-' . $channel_id, $stream->stream, false, 60 * 30 );
+
+			return $stream->stream;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Returns the status of a stream.
+	 *
+	 * @param  array $params Additional request parameters.
+	 * @return mixed
+	 */
+	public function get_stream_status( $params = array() ) {
+		$channel_id = $this->_settings['channel']->_id;
+		$stream     = wp_cache_get( 'wp-twitch-pack-stream-' . $channel_id );
+
+		if ( false === $stream ) {
+			$stream = $this->get_stream();
+		}
+
+		$data = array();
+
+		if ( ! empty( $stream ) ) {
+			$data['status'] = 'live';
+			$data['game']   = $stream->game;
+		} else {
+			$data['status'] = 'offline';
+		}
+
+		return $data;
+	}
+
+	/**
 	 * Gets the user object.
 	 *
 	 * @param  string $index  The specific index to return from the user object.
@@ -247,10 +298,12 @@ class WP_Twitch_Pack_HTTP {
 			$params['headers']['Authorization'] = 'OAuth ' . $this->_user_access_token;
 		}
 
-		if ( false !== $this->_settings['channel']->_id && false !== $user_id ) {
-			$response = $this->_make_api_call( 'GET', 'users/' . $user_id . '/follows/channels/' . $this->_settings['channel']->_id, $params );
+		$channel_id = $this->_settings['channel']->_id;
 
-			if ( isset( $response->channel->_id ) && absint( $response->channel->_id ) === absint( $this->_settings['channel']->_id ) ) {
+		if ( false !== $channel_id && false !== $user_id ) {
+			$response = $this->_make_api_call( 'GET', 'users/' . $user_id . '/follows/channels/' . $channel_id, $params );
+
+			if ( isset( $response->channel->_id ) && absint( $response->channel->_id ) === absint( $channel_id ) ) {
 				return true;
 			}
 		}

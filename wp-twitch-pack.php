@@ -4,7 +4,7 @@
  *
  * @package     WP Twitch Pack
  * @author      Nicola Mustone
- * @license     GPL-2.0+
+ * @license     GPL-3.0
  *
  * Plugin Name: WP Twitch Pack
  * Plugin URI:  https://wordpress.org/plugins/wp-twitch-pack/
@@ -53,6 +53,7 @@ class WP_Twitch_Pack {
 			add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 			add_shortcode( 'twitch_follow_button' , array( $this, 'print_follow_button' ) );
 			add_shortcode( 'twitch_vods' , array( $this, 'print_twitch_vods' ) );
+			add_shortcode( 'twitch_stream_status', array( $this, 'print_stream_status' ) );
 		}
 	}
 
@@ -65,10 +66,10 @@ class WP_Twitch_Pack {
 	public function print_follow_button( $atts = array() ) {
 		$channel_name = esc_html( $this->_http_client->get_channel( 'display_name' ) );
 
-		$atts = wp_parse_args( $atts, array(
+		$atts = shortcode_atts( array(
 			'button_text'          => sprintf( esc_html__( 'Follow %s on Twitch', 'wp-twitch-pack' ), $channel_name ),
 			'button_text_followed' => sprintf( esc_html__( 'You are following %s!', 'wp-twitch-pack' ), $channel_name ),
-		) );
+		), $atts );
 
 		if ( isset( $_GET['followed'] ) && 'yes' === sanitize_key( $_GET['followed'] ) ) {
 			$html = '<p>' . esc_attr( $atts['button_text_followed'] ) . '</p>';
@@ -115,6 +116,50 @@ class WP_Twitch_Pack {
 				$html .= apply_filters( 'wp_twitch_pack_vod_html', $video_html, $video );
 			}
 		}
+
+		return $html;
+	}
+
+	/**
+	 * Prints the HTML for the Twitch status.
+	 *
+	 * @param  array $atts Shortcoe attributes.
+	 * @return string
+	 */
+	public function print_stream_status( $atts ) {
+		$atts = shortcode_atts( array(
+			'wrap'           => 'div',
+			'print_username' => 'yes',
+			'print_game'     => 'no',
+		), $atts );
+
+		$stream  = $this->_http_client->get_stream_status();
+		$channel = $this->_settings['channel'];
+		$status  = 'live' === $data['status'] ? esc_html__( 'Live', 'wp-twitch-pack' ) : esc_html__( 'Offline', 'wp-twitch-pack' );
+		$intro   = sprintf( esc_html__( '%s is', 'wp-twitch-staus' ), '<a href="' . esc_url( $channel->url ) . '" target="_blank">' . ( 'yes' === $atts['print_username'] ? $channel->display_name : esc_html__( 'Stream', 'wp-twitch-staus' ) ) . '</a>' );
+
+		if ( 'yes' === $atts['print_game'] && 'live' === $data['status'] ) {
+			$between = 'Creative' === $data['game'] ? esc_html__( 'streaming', 'wp-twitch-pack' ) : esc_html__( 'playing', 'wp-twitch-pack' );
+			$game    = ' ' . $between . ' ' . $data['game'];
+		} else {
+			$game = '';
+		}
+
+		$html  = '';
+		$html .= '<' . esc_html( $atts['wrap'] ) . ' class="wp-twitch-pack stream-status">';
+
+		if ( 'div' === $atts['wrap'] ) {
+			$html .= '<p>';
+		}
+
+		$html .= '<span class="wp-twitch-pack stream-status intro">' . $intro . ' </span>';
+		$html .= '<span class="wp-twitch-pack stream-status status ' . esc_attr( strtolower( $status ) ) . '">' . esc_html( $status ) . $game . '</span>';
+
+		if ( 'div' === $atts['wrap'] ) {
+			$html .= '</p>';
+		}
+
+		$html .= '</' . esc_html( $wrap ) . '>';
 
 		return $html;
 	}
