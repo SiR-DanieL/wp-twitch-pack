@@ -34,6 +34,7 @@ class WP_Twitch_Pack {
 		// Include shared classes.
 		require_once __DIR__ . '/classes/class-twitch-pack-logger.php';
 		require_once __DIR__ . '/classes/class-twitch-pack-http.php';
+		require_once __DIR__ . '/classes/class-twitch-pack-status-widget.php';
 
 		// Load admin class if on the Dashboard.
 		if ( is_admin() ) {
@@ -46,6 +47,7 @@ class WP_Twitch_Pack {
 
 		$this->load_textdomain();
 
+		add_action( 'widgets_init', array( $this, 'register_widget' ) );
 		add_action( 'template_redirect', array( $this->_http_client, 'redirect_oauth' ) );
 
 		// Load frontend features only if a Twitch channel is already connected.
@@ -159,9 +161,16 @@ class WP_Twitch_Pack {
 			$html .= '</p>';
 		}
 
-		$html .= '</' . esc_html( $wrap ) . '>';
+		$html .= '</' . esc_html( $atts['wrap'] ) . '>';
 
 		return $html;
+	}
+
+	/**
+	 * Registers the widget WP_Twitch_Pack_Status_Widget.
+	 */
+	public function register_widget() {
+		register_widget( 'WP_Twitch_Pack_Status_Widget' );
 	}
 
 
