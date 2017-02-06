@@ -196,7 +196,7 @@ class WP_Twitch_Pack_HTTP {
 	 * Gets the channel VODs.
 	 *
 	 * @param  array $params Additional request parameters.
-	 * @return mixed         Returns the user object, or false on failure.
+	 * @return mixed         Returns the videos object, or false on failure.
 	 */
 	public function get_channel_videos( $params = array() ) {
 		$channel_id = absint( $this->_settings['channel']->_id );
@@ -211,6 +211,56 @@ class WP_Twitch_Pack_HTTP {
 	}
 
 	/**
+	 * Returns the channel highlighted VODs.
+	 *
+	 * @param  array $params Additional request parameters.
+	 * @return mixed Returns the videos object, or false on failure.
+	 */
+	public function get_channel_highlights( $params = array() ) {
+		$videos = wp_cache_get( 'wp-twitch-pack-videos-highlight' );
+
+		if ( false !== $videos ) {
+			return $videos;
+		}
+
+		$params['query']['broadcast_type'] = 'highlight';
+		$videos                            = $this->get_channel_videos( $params );
+
+		if ( false !== $videos ) {
+			wp_cache_set( 'wp-twitch-pack-videos-highlight', $videos, false, DAY_IN_SECONDS );
+
+			return $videos;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Returns the channel archived VODs.
+	 *
+	 * @param  array $params Additional request parameters.
+	 * @return mixed Returns the videos object, or false on failure.
+	 */
+	public function get_channel_archive( $params = array() ) {
+		$videos = wp_cache_get( 'wp-twitch-pack-videos-archive' );
+
+		if ( false !== $videos ) {
+			return $videos;
+		}
+
+		$params['query']['broadcast_type'] = 'archive';
+		$videos                            = $this->get_channel_videos( $params );
+
+		if ( false !== $videos ) {
+			wp_cache_set( 'wp-twitch-pack-videos-archive', $videos, false, DAY_IN_SECONDS );
+
+			return $videos;
+		}
+
+		return false;
+	}
+
+	/**
 	 * Returns the status of the admin stream.
 	 *
 	 * @param  array $params Additional request parameters.
@@ -218,7 +268,7 @@ class WP_Twitch_Pack_HTTP {
 	 */
 	public function get_stream( $params = array() ) {
 		$channel_id = $this->_settings['channel']->_id;
-		$stream     = wp_cache_get( 'wp-twitch-pack-stream-' . $channel_id );
+		$stream     = wp_cache_get( 'wp-twitch-pack-stream' );
 
 		if ( false !== $stream ) {
 			return $stream;
@@ -227,7 +277,7 @@ class WP_Twitch_Pack_HTTP {
 		$stream = $this->_make_api_call( 'GET', 'streams/' . $channel_id, $params );
 
 		if ( false !== $stream ) {
-			wp_cache_set( 'wp-twitch-pack-stream-' . $channel_id, $stream->stream, false, 60 * 30 );
+			wp_cache_set( 'wp-twitch-pack-stream', $stream->stream, false, 60 * 30 );
 
 			return $stream->stream;
 		}
@@ -243,7 +293,7 @@ class WP_Twitch_Pack_HTTP {
 	 */
 	public function get_stream_status( $params = array() ) {
 		$channel_id = $this->_settings['channel']->_id;
-		$stream     = wp_cache_get( 'wp-twitch-pack-stream-' . $channel_id );
+		$stream     = wp_cache_get( 'wp-twitch-pack-stream' );
 
 		if ( false === $stream ) {
 			$stream = $this->get_stream();

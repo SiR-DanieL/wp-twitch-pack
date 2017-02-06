@@ -93,7 +93,25 @@ class WP_Twitch_Pack {
 	 * @return string
 	 */
 	public function print_twitch_vods( $atts = array() ) {
-		$videos = $this->_http_client->get_channel_videos( array( 'query' => $atts ) );
+
+		if ( isset( $atts['broadcast_type'] ) ) {
+			switch ( $atts['broadcast_type'] ) {
+				case 'highlight':
+					unset( $atts['broadcast_type'] );
+					$videos = $this->_http_client->get_channel_highlights( array( 'query' => $atts ) );
+					break;
+				case 'archive':
+					unset( $atts['broadcast_type'] );
+					$videos = $this->_http_client->get_channel_archive( array( 'query' => $atts ) );
+					break;
+				default:
+					$videos = $this->_http_client->get_channel_videos( array( 'query' => $atts ) );
+					break;
+			}
+		} else {
+			$videos = $this->_http_client->get_channel_videos( array( 'query' => $atts ) );
+		}
+
 		$html   = '';
 
 		if ( false !== $videos ) {
